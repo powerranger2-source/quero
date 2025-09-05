@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conte os Ursinhos!</title>
+    <style>
+        :root{
+            --bg-outer-1:#b6f0c8;
+            --bg-outer-2:#7ed9a8;
+            --card:#f7fff7;
+            --card-shadow: 0 8px 24px rgba(0,0,0,.12);
+            --panel:#dff8e6;
+            --dash:#3fa76c;
+            --btn-disabled:#e6e6e6;
+            --btn-disabled-text:#bdbdbd;
+        }
+
+        html,body{height:100%}
+        body{
+            margin:0;
+            background: radial-gradient(1200px 600px at 50% -10%, var(--bg-outer-1), var(--bg-outer-2));
+            display: grid;
+            place-items: center;
+            font-family: ui-rounded, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+        }
+
+        .card {
+            width: min(360px, 92vw);
+            background: var(--card);
+            border-radius: 24px;
+            box-shadow: var(--card-shadow);
+            padding: 18px 16px 90px;
+            position:relative;
+            border: 3px solid rgba(0,0,0,.04);
+            text-align: center;
+        }
+
+        .title-bar {
+            height:54px;
+            border-radius: 18px;
+            background: linear-gradient(#fff4e0, #ffe7bf);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 14px;
+            font-size: 20px;
+            font-weight:bold;
+            color:#5c3b0a
+        }
+
+        .score{
+            font-size:18px;
+            font-weight:bold;
+            color: #2e7d32;
+            margin-bottom: 12px;
+        }
+
+        .play-area{
+            background: var(--panel);
+            border-radius: 18px;
+            padding: 24px;
+            min-height:180px;
+            border: 3px dashed var(--dash);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: center;
+            gap: 12px;
+        }
+
+        .urso{
+            width: 64px;
+            height:64px;
+            object-fit: contain;
+        }
+
+        .question{
+            margin-top: 14px;
+            font-size: 18px;
+            font-weight: bold;
+            color:#4a148c
+        }
+
+        .answers{
+            display:grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap:18px;
+            margin:18px 24px 0;
+            min-height: 92px;
+        }
+
+        .answer{
+            background:none;
+            border:none;
+            padding:0;
+            cursor: pointer;
+            border-radius: 18px;
+            display:flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform .15s;
+        }
+
+        .answer:active{
+            transform: scale(0.97);
+        }
+
+        .answer img{
+            width:60px;
+            height:60px;
+            object-fit: contain;
+            border-radius: 18px;
+        }
+
+        .footer-btn{
+            position:absolute;
+            left:50%;
+            bottom: 16px;
+            transform: translateX(-50%);
+            width:78%;
+            height:56px;
+            border-radius: 18px;
+            background: var(--btn-disabled);
+            color: var(--btn-disabled-text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: inset 0 -2px 0 rgba(0,0,0,.06);
+            pointer-events:none;
+            user-select: none;
+            transition: background .2s, color .2s;
+        }
+        .footer-btn.active{
+            background: #ffb74d;
+            color: #4a148c;
+            pointer-events:auto;
+            cursor:pointer;
+        }
+
+        @media (max-width: 600px) {
+            .card {
+                width: 98vw;
+                padding: 8px 2vw 80px;
+            }
+            .play-area{
+                padding: 10px;
+                min-height: 100px;
+                gap: 6px;
+            }
+            .urso{
+                width: 44px;
+                height:44px;
+            }
+            .answers{
+                gap:8px;
+                margin:10px 2vw 0;
+            }
+            .answer img{
+                width:38px;
+                height:38px;
+            }
+            .footer-btn{
+                height:44px;
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="card">
+        <div class="title-bar">🐻 Conte os Ursinhos!</div>
+        <div class="score">Pontuação: <span id="score">0</span></div>
+        <div class="question" id="question"></div>
+        <section class="play-area" id="play-area"></section>
+        <section class="answers" id="answers"></section>
+        <div class="footer-btn" id="next-btn">Próxima Pergunta</div>
+    </main>
+    <script>
+        const playArea = document.getElementById('play-area');
+        const answers = document.getElementById('answers');
+        const scoreEl = document.getElementById('score');
+        const nextBtn = document.getElementById('next-btn');
+        const questionEl = document.getElementById('question');
+        let score = 0;
+        let correctAnswer = 0;
+        let answered = false;
+
+        function randomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function shuffle(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+        }
+
+        function generateQuestion() {
+            answered = false;
+            nextBtn.classList.remove('active');
+            playArea.innerHTML = '';
+            answers.innerHTML = '';
+            questionEl.textContent = '';
+
+            // Decide: 0 = contar, 1 = adição, 2 = subtração
+            const mode = randomInt(0,2);
+
+            let n1, n2, total, questionText;
+
+            if (mode === 0) {
+                // Só contar
+                total = randomInt(1,10);
+                for(let i=0;i<total;i++){
+                    playArea.innerHTML += `<img src="img/urso.png" alt="Ursinho" class="urso">`;
+                }
+                correctAnswer = total;
+                questionText = "Quantos ursinhos você vê?";
+            } else if (mode === 1) {
+                // Adição
+                n1 = randomInt(1,8);
+                n2 = randomInt(1,10-n1);
+                total = n1 + n2;
+                for(let i=0;i<n1;i++){
+                    playArea.innerHTML += `<img src="img/urso.png" alt="Ursinho" class="urso">`;
+                }
+                playArea.innerHTML += `<span style="font-size:2em;margin:0 8px;">+</span>`;
+                for(let i=0;i<n2;i++){
+                    playArea.innerHTML += `<img src="img/urso.png" alt="Ursinho" class="urso">`;
+                }
+                correctAnswer = total;
+                questionText = `Quantos ursinhos no total?`;
+            } else {
+                // Subtração
+                n1 = randomInt(2,10);
+                n2 = randomInt(1,n1-1);
+                for(let i=0;i<n1;i++){
+                    playArea.innerHTML += `<img src="img/urso.png" alt="Ursinho" class="urso">`;
+                }
+                playArea.innerHTML += `<span style="font-size:2em;margin:0 8px;">-</span>`;
+                for(let i=0;i<n2;i++){
+                    playArea.innerHTML += `<img src="img/urso.png" alt="Ursinho" class="urso" style="opacity:.5;filter:grayscale(1);">`;
+                }
+                correctAnswer = n1-n2;
+                questionText = `Se tirarmos ${n2} ursinhos (cinza), quantos ficam?`;
+            }
+            questionEl.textContent = questionText;
+
+            // Gera opções
+            let options = [correctAnswer];
+            while(options.length < 6){
+                let opt = randomInt(1,10);
+                if(!options.includes(opt)) options.push(opt);
+            }
+            shuffle(options);
+
+            for(let opt of options){
+                answers.innerHTML += `
+                <button class="answer" data-value="${opt}">
+                    <img src="img/numero_${opt}.png" alt="${opt}">
+                </button>`;
+            }
+
+            // Adiciona eventos
+            document.querySelectorAll('.answer').forEach(btn=>{
+                btn.onclick = ()=>{
+                    if(answered) return;
+                    answered = true;
+                    const val = Number(btn.dataset.value);
+                    if(val === correctAnswer){
+                        btn.style.boxShadow = "0 0 0 4px #66bb6a";
+                        score++;
+                    }else{
+                        btn.style.boxShadow = "0 0 0 4px #ef5350";
+                        document.querySelector(`.answer[data-value="${correctAnswer}"]`).style.boxShadow = "0 0 0 4px #66bb6a";
+                        score = Math.max(0, score-1);
+                    }
+                    scoreEl.textContent = score;
+                    nextBtn.classList.add('active');
+                }
+            });
+        }
+
+        nextBtn.onclick = ()=>{
+            if(!nextBtn.classList.contains('active')) return;
+            generateQuestion();
+        };
+
+        // Primeira pergunta
+        generateQuestion();
+    </script>
+</body>
+</html>
